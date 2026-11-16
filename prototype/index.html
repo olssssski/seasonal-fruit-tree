@@ -1,0 +1,515 @@
+<title>Pohon Musim</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one full-bleed canvas stage. Quiet HUD in the top corners, harvest calendar lying along the ground. */
+:root{
+  --bg:#E6ECE0; --ground:#D7DFCD; --ink:#1B2620; --muted:#5B695F; --line:#C3CDBA;
+  --chip:#F2F5EE; --accent:#9C5F00; --accent-fill:#EBA21E;
+  --trunk:#45372B; --leaf1:#4A7A3B; --leaf2:#6C9946; --leaf3:#2E5431; --stem:#5C6A33;
+  --shadow:rgba(38,52,34,.16);
+  --f-display:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1714; --ground:#15201B; --ink:#E2EAE0; --muted:#93A195; --line:#28352E;
+  --chip:#18231E; --accent:#F2B84B; --accent-fill:#E9A21B;
+  --trunk:#8A7058; --leaf1:#4B7C44; --leaf2:#6C9A50; --leaf3:#2C5032; --stem:#7D8C4A;
+  --shadow:rgba(0,0,0,.4); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1714; --ground:#15201B; --ink:#E2EAE0; --muted:#93A195; --line:#28352E;
+  --chip:#18231E; --accent:#F2B84B; --accent-fill:#E9A21B;
+  --trunk:#8A7058; --leaf1:#4B7C44; --leaf2:#6C9A50; --leaf3:#2C5032; --stem:#7D8C4A;
+  --shadow:rgba(0,0,0,.4); color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);overflow:hidden;-webkit-font-smoothing:antialiased}
+.app{position:relative;height:100%;overflow:hidden}
+#stage{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#stage.grabbing{cursor:grabbing}
+
+.hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
+  padding-block:22px 0;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));pointer-events:none}
+.hud-l{display:grid;gap:14px;max-width:340px;min-width:0}
+.brand{margin:0;font:600 13px/1 var(--f-body);letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.brand::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent-fill)}
+.eyebrow{font:500 11px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fruit{display:grid;gap:6px}
+.fruit h2{margin:0;font:700 clamp(44px,7.2vw,84px)/.88 var(--f-display);letter-spacing:-.035em;text-wrap:balance}
+.meta{margin:0;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;font-size:15px;color:var(--ink)}
+.meta .mono{font:500 13px var(--f-mono);color:var(--accent)}
+.meta .sep{color:var(--muted)}
+.note{margin:0;font-size:14px;line-height:1.5;color:var(--muted);max-width:30ch}
+.howto{margin:0;font-size:13px;line-height:1.45;color:var(--ink);display:flex;gap:8px;align-items:center}
+.howto kbd{font:500 11px var(--f-mono);border:1px solid var(--line);border-radius:4px;padding:2px 6px;background:var(--chip)}
+
+.hud-r{display:grid;gap:14px;justify-items:end;pointer-events:auto;flex:none}
+.stat{display:grid;justify-items:end;gap:4px}
+.num{font:500 40px/1 var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.num small{font-size:18px;color:var(--muted)}
+.meter{display:grid;gap:6px;justify-items:end;width:160px}
+.bar{width:100%;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent-fill);border-radius:3px;transition:width .08s linear}
+.btns{display:flex;gap:8px}
+.btn{font:600 13px var(--f-body);color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:9px 16px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,.mo:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.ready{border-color:var(--accent-fill);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-fill) 30%,transparent)}
+
+.cal{position:absolute;left:0;right:0;bottom:0;padding-block:10px 16px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));display:grid;gap:10px}
+.cal-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.cal-note{font-size:12px;color:var(--muted)}
+.strip{display:grid;grid-template-columns:repeat(12,minmax(64px,1fr));gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.strip::-webkit-scrollbar{display:none}
+.mo{position:relative;display:grid;justify-items:center;gap:3px;padding:8px 4px 7px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--ink);cursor:pointer;font:inherit}
+.mo:hover{background:var(--chip)}
+.mo[aria-checked="true"]{background:var(--chip);border-color:var(--line)}
+.mo canvas{width:30px;height:30px}
+.mo-m{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mo-f{font-size:12px;font-weight:500;white-space:nowrap}
+.mo.now .mo-m{color:var(--accent)}
+.mo.now::after{content:"";position:absolute;top:7px;right:9px;width:6px;height:6px;border-radius:50%;background:var(--accent-fill)}
+
+@media (max-width:720px){
+  .hud{flex-direction:column;gap:12px;padding-block:16px 0}
+  .hud-l{gap:8px}
+  .note{display:none}
+  .hud-r{width:100%;grid-template-columns:auto 1fr auto;align-items:end;justify-items:start}
+  .stat{justify-items:start}
+  .num{font-size:28px}
+  .meter{width:auto;justify-self:stretch;justify-items:start}
+  .strip{grid-template-columns:repeat(12,64px)}
+  .cal-note{display:none}
+}
+@media (max-width:460px){
+  .hud-r{grid-template-columns:auto 1fr}
+  .btns{grid-column:1 / -1}
+}
+</style>
+
+<div class="app">
+  <canvas id="stage" aria-label="A tree with fruit. Drag across the branches to shake it."></canvas>
+
+  <header class="hud" id="hud">
+    <div class="hud-l">
+      <h1 class="brand">Pohon Musim</h1>
+      <div class="fruit">
+        <span class="eyebrow" id="monthLabel">Now · November</span>
+        <h2 id="fruitName">Mangga</h2>
+        <p class="meta"><span id="fruitEn">Mango</span><span class="sep">·</span><span class="mono" id="fruitSeason">Sep – Dec</span></p>
+      </div>
+      <p class="note" id="fruitNote"></p>
+      <p class="howto"><kbd>drag</kbd> across the branches to shake</p>
+    </div>
+    <div class="hud-r">
+      <div class="stat" aria-live="polite">
+        <span class="eyebrow">Fallen</span>
+        <span class="num"><span id="count">0</span><small>/<span id="total">0</span></small></span>
+      </div>
+      <div class="meter">
+        <span class="eyebrow">Shake</span>
+        <div class="bar"><i id="meter"></i></div>
+      </div>
+      <div class="btns">
+        <button class="btn primary" id="shakeBtn" type="button">Shake tree</button>
+        <button class="btn" id="regrowBtn" type="button">Regrow</button>
+      </div>
+    </div>
+  </header>
+
+  <footer class="cal" id="cal">
+    <div class="cal-head">
+      <span class="eyebrow">Kalender buah · harvest calendar</span>
+      <span class="cal-note">Peak months are approximate and vary by island. Tap a month to preview its fruit.</span>
+    </div>
+    <div class="strip" id="strip" role="radiogroup" aria-label="Month"></div>
+  </footer>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const canvas = $('#stage'), ctx = canvas.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- utils ---------- */
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const hx = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+function rampA(stops,t){t=Math.max(0,Math.min(1,t));const n=stops.length-1,i=Math.min(n-1,Math.floor(t*n)),f=t*n-i,a=hx(stops[i]),b=hx(stops[i+1]);return a.map((v,k)=>v+(b[k]-v)*f)}
+const css = (c,a=1,k=1) => `rgba(${c.map(v=>Math.max(0,Math.min(255,Math.round(v*k)))).join(',')},${a})`;
+function ball(c,x,y,r,base){const g=c.createRadialGradient(x-r*.35,y-r*.4,r*.1,x,y,r);g.addColorStop(0,css(base,1,1.25));g.addColorStop(.6,css(base));g.addColorStop(1,css(base,1,.68));c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=g;c.fill()}
+function shine(c,x,y,rx,ry,rot,a=.28){c.beginPath();c.ellipse(x,y,rx,ry,rot,0,7);c.fillStyle=`rgba(255,255,255,${a})`;c.fill()}
+
+/* ---------- fruit drawings: origin at stem tip, fruit hangs toward +y ---------- */
+function drawMango(c,r,p){
+  const b=rampA(['#5E9B3A','#A9BE38','#F2B42A','#EC8A24'],p);
+  const g=c.createLinearGradient(-r,0,r,r*2.6);g.addColorStop(0,css(b,1,1.12));g.addColorStop(.55,css(b));g.addColorStop(1,css(b,1,.72));
+  c.beginPath();c.moveTo(0,0);c.bezierCurveTo(r*1.1,0,r*1.2,r*1.6,r*.55,r*2.3);c.bezierCurveTo(r*.2,r*2.75,-r*.9,r*2.6,-r*.95,r*1.6);c.bezierCurveTo(-r,r*.7,-r*.6,0,0,0);c.closePath();
+  c.fillStyle=g;c.fill();
+  if(p>.45){c.save();c.clip();const bl=c.createRadialGradient(r*.55,r*.7,0,r*.55,r*.7,r*1.4);bl.addColorStop(0,`rgba(212,62,42,${Math.min(.75,(p-.45)*1.3)})`);bl.addColorStop(1,'rgba(212,62,42,0)');c.fillStyle=bl;c.fillRect(-2*r,-r,4*r,4*r);c.restore()}
+  shine(c,-r*.45,r*1.05,r*.17,r*.5,.25,.24);
+}
+function drawRambutan(c,r,p){
+  const cy=r*1.2,b=rampA(['#A7BE3E','#E0A43A','#C8283A','#A51C33'],p);
+  c.beginPath();
+  for(let i=0;i<38;i++){const a=i/38*Math.PI*2+(i%2)*.06,x0=Math.cos(a)*r*.75,y0=cy+Math.sin(a)*r*.75;
+    c.moveTo(x0,y0);c.quadraticCurveTo(Math.cos(a)*r*1.35,cy+Math.sin(a)*r*1.35,Math.cos(a+.45)*r*1.5,cy+Math.sin(a+.45)*r*1.5)}
+  c.strokeStyle=css(b,1,.95);c.lineWidth=r*.13;c.lineCap='round';c.stroke();
+  ball(c,0,cy,r,b);shine(c,-r*.35,cy-r*.4,r*.22,r*.14,-.6,.25);
+}
+function drawDurian(c,r,p){
+  const cy=r*1.4,b=rampA(['#5F7F2C','#7D8F33','#A99B3F'],p),N=34;
+  c.beginPath();for(let i=0;i<=N;i++){const a=i/N*Math.PI*2,k=i%2?1.13:.97;c.lineTo(Math.cos(a)*r*.95*k,cy+Math.sin(a)*r*1.2*k)}c.closePath();
+  const g=c.createRadialGradient(-r*.3,cy-r*.4,r*.1,0,cy,r*1.3);g.addColorStop(0,css(b,1,1.2));g.addColorStop(1,css(b,1,.7));c.fillStyle=g;c.fill();
+  c.beginPath();
+  for(let row=-3;row<=3;row++)for(let col=-3;col<=3;col++){const x=(col+(row%2?.5:0))*r*.34,y=cy+row*r*.36;if((x*x)/(r*r*.72)+((y-cy)*(y-cy))/(r*r*1.15)>1)continue;
+    c.moveTo(x-r*.11,y+r*.08);c.lineTo(x,y-r*.13);c.lineTo(x+r*.11,y+r*.08);c.closePath()}
+  c.fillStyle=css(b,1,.72);c.fill();
+  c.fillStyle=css(rampA(['#4E5E2A','#6A5A30'],p));c.fillRect(-r*.08,-r*.02,r*.16,r*.3);
+}
+function drawManggis(c,r,p){
+  const cy=r*1.15,b=rampA(['#7FA23F','#9C4D5A','#5A2045','#3E1430'],p);
+  ball(c,0,cy,r,b);shine(c,-r*.4,cy-r*.35,r*.25,r*.15,-.7,.22);
+  c.fillStyle='#4F7A33';for(const dx of[-.48,-.16,.16,.48]){c.beginPath();c.ellipse(dx*r,r*.28,r*.24,r*.14,dx*1.4,0,7);c.fill()}
+  c.fillStyle='#3E6229';c.beginPath();c.arc(0,r*.18,r*.12,0,7);c.fill();
+}
+function cluster(c,r,p,stops,pts,br){
+  const b=rampA(stops,p);c.beginPath();for(const[x,y]of pts){c.moveTo(0,0);c.quadraticCurveTo(x*r*.3,y*r*.5,x*r,(y-.7)*r)}
+  c.strokeStyle=css(rampA(['#6E7A3A','#7B6A40'],p));c.lineWidth=r*.12;c.stroke();
+  [...pts].sort((a,b)=>a[1]-b[1]).forEach(([x,y])=>{ball(c,x*r,y*r,br*r,b)});
+}
+const drawDuku=(c,r,p)=>cluster(c,r,p,['#A9B96A','#D7C78C','#E2C98F'],[[0,1],[-.9,1.6],[.9,1.6],[0,2.1],[-.75,2.75],[.75,2.75]],.78);
+const drawKelengkeng=(c,r,p)=>cluster(c,r,p,['#A7A36A','#C8A46C','#BF9862'],[[0,1],[-.85,1.5],[.85,1.5],[0,1.95],[-1.3,2.3],[-.45,2.55],[.45,2.55],[1.3,2.3],[0,3.1]],.7);
+function drawSawo(c,r,p){
+  const cy=r*1.1,b=rampA(['#7F7C4C','#8F7350','#7E5B3C'],p);
+  const g=c.createRadialGradient(-r*.3,cy-r*.4,r*.1,0,cy,r*1.1);g.addColorStop(0,css(b,1,1.2));g.addColorStop(1,css(b,1,.72));
+  c.beginPath();c.ellipse(0,cy,r*.85,r*1.05,0,0,7);c.fillStyle=g;c.fill();
+  c.fillStyle='rgba(60,40,20,.22)';for(let i=0;i<14;i++){const a=i*2.4,d=((i*37)%10)/10;c.beginPath();c.arc(Math.cos(a)*r*.6*d,cy+Math.sin(a)*r*.8*d,r*.05,0,7);c.fill()}
+  c.fillStyle=css(b,1,.5);c.beginPath();c.arc(0,cy+r*1.02,r*.07,0,7);c.fill();
+}
+function drawAlpukat(c,r,p){
+  const b=rampA(['#7EA845','#5A8435','#3E6229'],p);
+  const g=c.createLinearGradient(-r,0,r,r*2.4);g.addColorStop(0,css(b,1,1.18));g.addColorStop(1,css(b,1,.7));
+  c.beginPath();c.moveTo(0,0);c.bezierCurveTo(r*.5,0,r*.55,r*.9,r*.95,r*1.6);c.bezierCurveTo(r*1.25,r*2.4,-r*1.25,r*2.4,-r*.95,r*1.6);c.bezierCurveTo(-r*.55,r*.9,-r*.5,0,0,0);c.closePath();
+  c.fillStyle=g;c.fill();shine(c,-r*.45,r*1.55,r*.15,r*.35,.35,.2);
+}
+function drawJeruk(c,r,p){
+  const cy=r*1.05,b=rampA(['#6E9C35','#B5B02E','#F2A52A','#EE8A1E'],p);
+  ball(c,0,cy,r,b);c.fillStyle='rgba(0,0,0,.08)';for(let i=0;i<18;i++){const a=i*2.39,d=.25+((i*53)%10)/14;c.beginPath();c.arc(Math.cos(a)*r*.75*d,cy+Math.sin(a)*r*.75*d,r*.045,0,7);c.fill()}
+  shine(c,-r*.35,cy-r*.4,r*.24,r*.14,-.6,.3);
+  c.fillStyle='#4E7F38';c.beginPath();c.ellipse(r*.35,r*.05,r*.42,r*.16,-.5,0,7);c.fill();
+}
+function drawJambu(c,r,p){
+  const b=rampA(['#CFE2A4','#F0A9A9','#E2435A','#C92D48'],p);
+  const g=c.createLinearGradient(-r,0,r,r*2.2);g.addColorStop(0,css(b,1,1.15));g.addColorStop(1,css(b,1,.72));
+  c.beginPath();c.moveTo(-r*.3,0);c.lineTo(r*.3,0);c.bezierCurveTo(r*.6,r*.6,r*1.05,r*1.3,r*.95,r*1.9);c.quadraticCurveTo(r*.5,r*2.25,0,r*2.0);c.quadraticCurveTo(-r*.5,r*2.25,-r*.95,r*1.9);c.bezierCurveTo(-r*1.05,r*1.3,-r*.6,r*.6,-r*.3,0);c.closePath();
+  c.fillStyle=g;c.fill();shine(c,-r*.45,r*1.1,r*.14,r*.45,.2,.38);
+}
+
+/* cy: centre of mass below stem tip (in r); rad: collision radius (in r); h: drawn height (in r) */
+const FRUITS = {
+  rambutan:  {id:'Rambutan',   en:'Rambutan',     season:'Nov – Feb', r:10, cy:1.2, rad:1.4, h:2.8, round:true,  n:20, stem:18, draw:drawRambutan,  note:'A rainy-season fruit. Hairy red skins come down in bunches around the new year.'},
+  manggis:   {id:'Manggis',    en:'Mangosteen',   season:'Dec – Mar', r:11, cy:1.15,rad:1.1, h:2.3, round:true,  n:16, stem:18, draw:drawManggis,   note:'Ripens from green to deep purple. The petals at the base tell you how many segments are inside.'},
+  duku:      {id:'Duku',       en:'Langsat',      season:'Jan – Apr', r:8,  cy:2.0, rad:1.9, h:3.6, round:true,  n:12, stem:10, draw:drawDuku,      note:'Pale clusters with sweet, translucent flesh. Palembang duku are the famous ones.'},
+  sawo:      {id:'Sawo',       en:'Sapodilla',    season:'Mar – Jun', r:11, cy:1.1, rad:1.0, h:2.2, round:true,  n:15, stem:16, draw:drawSawo,      note:'Sandy brown skin and a soft, caramel-sweet flesh once fully ripe.'},
+  alpukat:   {id:'Alpukat',    en:'Avocado',      season:'Apr – Jul', r:12, cy:1.5, rad:1.1, h:2.4, round:false, n:12, stem:20, draw:drawAlpukat,   note:'Usually blended into jus alpukat with a ribbon of chocolate condensed milk.'},
+  jeruk:     {id:'Jeruk Siam', en:'Siam orange',  season:'Jun – Aug', r:10, cy:1.05,rad:1.0, h:2.1, round:true,  n:18, stem:16, draw:drawJeruk,     note:'Picked in the dry months. A green skin can still hide a sweet fruit.'},
+  kelengkeng:{id:'Kelengkeng', en:'Longan',       season:'Jul – Sep', r:6,  cy:2.1, rad:2.2, h:3.9, round:true,  n:12, stem:10, draw:drawKelengkeng,note:'Tight tan clusters. Pinch the thin shell and it pops open.'},
+  jambu:     {id:'Jambu Air',  en:'Water apple',  season:'Aug – Oct', r:10, cy:1.2, rad:1.05,h:2.2, round:false, n:18, stem:14, draw:drawJambu,     note:'Crisp, watery and best eaten cold. Glossy pink bells ripen in waves.'},
+  mangga:    {id:'Mangga',     en:'Mango',        season:'Sep – Dec', r:14, cy:1.3, rad:1.15,h:2.75,round:false, n:14, stem:22, draw:drawMango,     note:'Arumanis and gedong gincu are at their peak. Ripe ones blush orange; green ones hold on tight.'},
+  durian:    {id:'Durian',     en:'Durian',       season:'Nov – Feb', r:19, cy:1.4, rad:1.2, h:2.9, round:true,  n:7,  stem:12, draw:drawDurian,    note:'A ripe durian drops on its own, so people wait under the tree at night. Stand clear.'},
+};
+const MONTHS = [
+  ['Jan','Januari','rambutan'],['Feb','Februari','manggis'],['Mar','Maret','duku'],['Apr','April','sawo'],
+  ['Mei','Mei','alpukat'],['Jun','Juni','jeruk'],['Jul','Juli','jeruk'],['Agu','Agustus','kelengkeng'],
+  ['Sep','September','jambu'],['Okt','Oktober','mangga'],['Nov','November','mangga'],['Des','Desember','durian'],
+];
+const NOW_MONTH = new Date().getMonth();
+
+/* ---------- theme ---------- */
+let T = {};
+function readTheme(){const s=getComputedStyle(document.documentElement);for(const k of['trunk','leaf1','leaf2','leaf3','ground','shadow','stem'])T[k]=s.getPropertyValue('--'+k).trim()}
+readTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTheme);
+new MutationObserver(readTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- tree ---------- */
+const MAXD = 6;
+let segs = [], bbox;
+function buildTree(){
+  const R = rng(11); segs = [];
+  (function add(parent,depth,len,width,rest,absRest){
+    const k = 26 + 300*(width/30);
+    const s = {p:parent,depth,len,width,rest,th:0,om:0,al:0,phase:R()*6.28,k,c:2*.09*Math.sqrt(k),A:0,sx:0,sy:0,ex:0,ey:0,leaves:[]};
+    segs.push(s);
+    if(depth>=MAXD-2){
+      const n = depth===MAXD?12:(depth===MAXD-1?7:4);
+      for(let i=0;i<n;i++) s.leaves.push({t:.3+R()*.85,off:(R()-.5)*26,ang:(R()-.5)*2.6,len:15+R()*9,wid:5+R()*3.5,c:R()<.3?3:(R()<.5?1:2)});
+    }
+    if(depth<MAXD){
+      const n = depth===0?2:(R()<.3?3:2);
+      const spread = depth===0?.95:(depth===1?1.15:.9+R()*.4);
+      for(let i=0;i<n;i++){
+        const t=n===1?0:i/(n-1)-.5;
+        let a=t*spread+(R()-.5)*.3;
+        const ab=absRest+a; a+=(-Math.PI/2-ab)*(depth<2?.05:.16);
+        const lf = depth===0?.66:.74+R()*.1;
+        add(s,depth+1,len*lf,width*.68,a,absRest+a);
+      }
+    }
+  })(null,0,200,30,-Math.PI/2+.03,-Math.PI/2+.03);
+  pose();
+  let x0=1e9,x1=-1e9,y0=1e9;
+  for(const s of segs){x0=Math.min(x0,s.ex-20);x1=Math.max(x1,s.ex+20);y0=Math.min(y0,s.ey-24)}
+  bbox={x0,x1,y0};
+}
+function pose(){
+  for(const s of segs){
+    const pa = s.p?s.p.A:0;
+    s.A = pa + s.rest + s.th;
+    s.sx = s.p?s.p.ex:0; s.sy = s.p?s.p.ey:0;
+    s.ex = s.sx + Math.cos(s.A)*s.len; s.ey = s.sy + Math.sin(s.A)*s.len;
+  }
+}
+
+/* ---------- state ---------- */
+let current = MONTHS[NOW_MONTH][2], selectedMonth = NOW_MONTH;
+let hanging = [], bodies = [], parts = [], fallen = 0, total = 0;
+let time = 0, shakeT = 0;
+const G = 1900;
+const ptr = {x:0,y:0,vx:0,vy:0,active:false,down:false,last:0};
+
+function spawnFruit(key, delay){
+  const F = FRUITS[key], R = rng(Math.floor(Math.random()*1e9));
+  const cands = segs.filter(s=>s.depth>=3&&s.depth<=5);
+  const picked = [], minD = Math.max(54, F.r*F.rad*3.4);
+  let guard = 0;
+  while(picked.length<F.n && guard++<800){
+    const s = cands[Math.floor(R()*cands.length)];
+    if(s.ey>-150) continue;
+    if(picked.some(o=>Math.hypot(o.seg.ex-s.ex,o.seg.ey-s.ey)<minD)) continue;
+    const roll=R(), ripe = roll<.6?.82+R()*.18:(roll<.85?.45+R()*.25:.08+R()*.22);
+    picked.push({type:key,F,seg:s,L:F.stem*(.8+R()*.4),phi:(R()-.5)*.2,dphi:0,ripe,
+      hold:(ripe>.8?.5:ripe>.4?1.8:4.5)+R()*.35,stress:0,grow:0,delay:delay+picked.length*.045,shrink:false,
+      px:s.ex,py:s.ey,pvx:0,pvy:0,aSm:0,sc:.9+R()*.2});
+  }
+  return picked;
+}
+function setFruit(key, animate){
+  current = key;
+  hanging.forEach(h=>h.shrink=true);
+  bodies.forEach(b=>b.fade=b.fade||1);
+  const fresh = spawnFruit(key, animate?.3:0);
+  if(!animate) fresh.forEach(f=>{f.grow=1;f.delay=0});
+  hanging.push(...fresh);
+  fallen=0; total=fresh.length; updateText(); updateCount();
+}
+
+/* ---------- physics ---------- */
+function step(dt){
+  time += dt;
+  if(shakeT>0) shakeT-=dt;
+  const wind = reduceMotion?0:1;
+  const pv = Math.hypot(ptr.vx,ptr.vy), usePtr = ptr.active && pv>30, pk = ptr.down?1:.35;
+  for(const s of segs){
+    const om0 = s.om;
+    let f = -s.k*s.th - s.c*s.om;
+    if(s.p) f -= s.p.al*.35;
+    f += wind*Math.sin(time*1.25+s.phase+s.depth*.5)*(3.2/(s.width*.25+1));
+    if(shakeT>0 && s.depth<=2){const env=Math.sin(Math.min(1,shakeT)*Math.PI);f += Math.sin(time*23+s.depth*.7)*(s.depth===0?6:s.depth===1?20:30)*env}
+    if(usePtr){
+      const dx=s.ex-s.sx, dy=s.ey-s.sy, l2=dx*dx+dy*dy;
+      let t=((ptr.x-s.sx)*dx+(ptr.y-s.sy)*dy)/l2; t=Math.max(0,Math.min(1,t));
+      const qx=s.sx+dx*t-ptr.x, qy=s.sy+dy*t-ptr.y, d=Math.hypot(qx,qy), R0=80;
+      if(d<R0){const w=(1-d/R0)**2, cr=(dx*ptr.vy-dy*ptr.vx)/s.len; f += w*cr/s.len*7*pk*t}
+    }
+    s.om += f*dt;
+    if(s.om>12)s.om=12; else if(s.om<-12)s.om=-12;
+    s.al = (s.om-om0)/dt;
+    s.th += s.om*dt;
+    const lim = s.depth===0?.08:.65;
+    if(s.th>lim){s.th=lim;s.om*=-.3} else if(s.th<-lim){s.th=-lim;s.om*=-.3}
+  }
+  pose();
+
+  for(let i=hanging.length-1;i>=0;i--){
+    const h=hanging[i], s=h.seg;
+    if(h.shrink){h.grow-=dt*3;if(h.grow<=0)hanging.splice(i,1);continue}
+    if(h.delay>0){h.delay-=dt}else if(h.grow<1){h.grow=Math.min(1,h.grow+dt*2.2)}
+    const vx=(s.ex-h.px)/dt, vy=(s.ey-h.py)/dt;
+    let ax=(vx-h.pvx)/dt, ay=(vy-h.pvy)/dt;
+    h.px=s.ex;h.py=s.ey;h.pvx=vx;h.pvy=vy;
+    const am=Math.hypot(ax,ay); if(am>9000){ax*=9000/am;ay*=9000/am}
+    h.aSm += (Math.min(am,9000)-h.aSm)*.15;
+    const L=h.L+h.F.cy*h.F.r*h.sc;
+    h.dphi += ((-ax*Math.cos(h.phi)-(G-ay)*Math.sin(h.phi))/L - h.dphi*2.4)*dt;
+    if(h.dphi>14)h.dphi=14; else if(h.dphi<-14)h.dphi=-14;
+    h.phi += h.dphi*dt;
+    if(h.grow>=1){
+      h.stress += Math.min(1.3, Math.max(0,h.aSm-1500)/1100 + Math.max(0,Math.abs(h.dphi)-6)*.12)*dt;
+      h.stress = Math.max(0,h.stress-.25*dt);
+      if(h.stress>h.hold) drop(h,i);
+    }
+  }
+
+  for(const b of bodies){
+    b.vy += G*dt; b.x += b.vx*dt; b.y += b.vy*dt; b.rot += b.vr*dt;
+    b.sq *= Math.pow(.0005,dt);
+    if(b.y+b.rad>0){
+      b.y=-b.rad;
+      if(b.vy>420){b.sq=Math.min(.28,b.vy/4200);if(!b.landed)leafBurst(b.x,-2,3)}
+      b.landed=true;
+      b.vy = b.vy>160?-b.vy*.32:0;
+      b.vx *= Math.pow(.25,dt*4);
+      if(b.F.round){b.vr=b.vx/b.rad}else{const tgt=Math.round((b.rot-Math.PI/2)/Math.PI)*Math.PI+Math.PI/2;b.rot+=(tgt-b.rot)*Math.min(1,dt*8);b.vr*=.8}
+    }
+    if(b.x<view.xmin+b.rad){b.x=view.xmin+b.rad;b.vx=Math.abs(b.vx)*.5}
+    if(b.x>view.xmax-b.rad){b.x=view.xmax-b.rad;b.vx=-Math.abs(b.vx)*.5}
+    if(b.fade){b.fade-=dt*2.5}
+  }
+  for(let i=0;i<bodies.length;i++)for(let j=i+1;j<bodies.length;j++){
+    const a=bodies[i],b=bodies[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),m=a.rad+b.rad;
+    if(d>0&&d<m){const o=(m-d)/2,nx=dx/d,ny=dy/d;a.x-=nx*o;a.y-=ny*o;b.x+=nx*o;b.y+=ny*o;
+      const rv=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(rv<0){const j2=-rv*.6;a.vx-=nx*j2;a.vy-=ny*j2;b.vx+=nx*j2;b.vy+=ny*j2}}
+  }
+  for(let i=bodies.length-1;i>=0;i--) if(bodies[i].fade!==undefined&&bodies[i].fade<=0) bodies.splice(i,1);
+
+  if(parts.length<90) for(const s of segs){ if(s.depth===MAXD && Math.abs(s.om)>4.5 && Math.random()<.012) leafBurst(s.ex,s.ey,1) }
+  for(let i=parts.length-1;i>=0;i--){
+    const q=parts[i];
+    if(q.y<-2){q.vy+=260*dt;q.vy*=Math.pow(.2,dt);q.vx+=Math.sin(time*3+q.ph)*90*dt;q.vx*=Math.pow(.4,dt);q.x+=q.vx*dt;q.y+=q.vy*dt;q.rot+=q.vr*dt}
+    else{q.y=-2;q.life-=dt*.35}
+    if(q.life<=0)parts.splice(i,1);
+  }
+  ptr.vx*=.9;ptr.vy*=.9;
+}
+function leafBurst(x,y,n){for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*160,vy:-Math.random()*80,rot:Math.random()*6,vr:(Math.random()-.5)*8,ph:Math.random()*6,life:1.6,c:1+Math.floor(Math.random()*3),len:12+Math.random()*6})}
+function drop(h,i){
+  hanging.splice(i,1);
+  const F=h.F, L=h.L+F.cy*F.r*h.sc, sn=Math.sin(h.phi), cs=Math.cos(h.phi);
+  bodies.push({F,ripe:h.ripe,sc:h.sc,x:h.px+sn*L,y:h.py+cs*L,vx:h.pvx+h.dphi*L*cs+(Math.random()-.5)*40,vy:h.pvy-h.dphi*L*sn,
+    rot:-h.phi,vr:-h.dphi+(Math.random()-.5)*3,rad:F.rad*F.r*h.sc,sq:0,landed:false});
+  fallen++; updateCount();
+}
+
+/* ---------- view ---------- */
+const view = {w:0,h:0,dpr:1,ox:0,gy:0,sc:1,xmin:-500,xmax:500};
+function layout(){
+  const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(2,devicePixelRatio||1);
+  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  const cal=$('#cal'), hud=$('#hud');
+  const gy = cal.offsetTop - 6;
+  const top = w<=720 ? hud.offsetTop+hud.offsetHeight+10 : 30;
+  const sc = Math.min((gy-top)/(-bbox.y0), (w-32)/(bbox.x1-bbox.x0));
+  Object.assign(view,{w,h,dpr,gy,sc,ox:w/2-sc*(bbox.x0+bbox.x1)/2});
+  view.xmin=(16-view.ox)/sc; view.xmax=(w-16-view.ox)/sc;
+}
+
+/* ---------- render ---------- */
+function leafPath(c,x,y,a,L,w){const ca=Math.cos(a),sa=Math.sin(a),tx=x+ca*L,ty=y+sa*L,mx=x+ca*L*.5,my=y+sa*L*.5,px=-sa*w,py=ca*w;
+  c.moveTo(x,y);c.quadraticCurveTo(mx+px,my+py,tx,ty);c.quadraticCurveTo(mx-px,my-py,x,y)}
+function drawLeaves(c,which){
+  c.beginPath();
+  for(const s of segs){if(!s.leaves.length)continue;const ca=Math.cos(s.A),sa=Math.sin(s.A),fl=s.om*.05;
+    for(const l of s.leaves){if(!which.includes(l.c))continue;const x=s.sx+ca*s.len*l.t-sa*l.off,y=s.sy+sa*s.len*l.t+ca*l.off;leafPath(c,x,y,s.A+l.ang+fl,l.len,l.wid)}}
+}
+function drawFruitAt(c,F,ripe,scale){c.scale(scale,scale);F.draw(c,F.r,ripe)}
+function render(){
+  const c=ctx,{w,h,dpr,gy,sc,ox}=view;
+  c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+  c.fillStyle=T.ground;c.fillRect(0,gy,w,h-gy);
+  c.beginPath();c.ellipse(ox,gy+2,(bbox.x1-bbox.x0)*sc*.36,9,0,0,7);c.fillStyle=T.shadow;c.fill();
+  c.translate(ox,gy);c.scale(sc,sc);
+
+  drawLeaves(c,[3]);c.fillStyle=T.leaf3;c.fill();
+  c.lineCap='round';c.strokeStyle=T.trunk;
+  for(const s of segs){c.beginPath();c.moveTo(s.sx,s.sy);c.lineTo(s.ex,s.ey);c.lineWidth=s.width*(s.depth===0?1:.85);c.stroke()}
+  c.beginPath();c.moveTo(-26,0);c.quadraticCurveTo(-12,-6,-10,-30);c.lineTo(10,-30);c.quadraticCurveTo(12,-6,28,0);c.closePath();c.fillStyle=T.trunk;c.fill();
+  drawLeaves(c,[1]);c.fillStyle=T.leaf1;c.fill();
+  drawLeaves(c,[2]);c.fillStyle=T.leaf2;c.fill();
+
+  for(const hf of hanging){
+    if(hf.grow<=0)continue;
+    const g=hf.grow, e=hf.shrink?g:1+2.2*Math.pow(g-1,3)+1.2*Math.pow(g-1,2);
+    c.save();c.translate(hf.px,hf.py);c.rotate(-hf.phi);
+    c.beginPath();c.moveTo(0,0);c.lineTo(0,hf.L*e);c.strokeStyle=T.stem;c.lineWidth=hf.F===FRUITS.durian?3:1.6;c.stroke();
+    c.translate(0,hf.L*e);drawFruitAt(c,hf.F,hf.ripe,hf.sc*Math.max(0,e));c.restore();
+  }
+  for(const q of parts){c.save();c.globalAlpha=Math.min(1,q.life);c.beginPath();leafPath(c,q.x,q.y,q.rot,q.len,5);c.fillStyle=T['leaf'+q.c];c.fill();c.restore()}
+  for(const b of bodies){
+    c.save();c.globalAlpha=b.fade!==undefined?Math.max(0,b.fade):1;
+    c.translate(b.x,b.y);if(b.sq>.005){c.translate(0,b.rad);c.scale(1+b.sq,1-b.sq);c.translate(0,-b.rad)}
+    c.rotate(b.rot);c.translate(0,-b.F.cy*b.F.r*b.sc);drawFruitAt(c,b.F,b.ripe,b.sc);c.restore();
+  }
+}
+
+/* ---------- HUD ---------- */
+const meter=$('#meter'); let lastMeter=-1;
+function updateMeter(){let e=0;for(const s of segs)if(s.depth>=2)e+=s.om*s.om;e=Math.min(1,Math.sqrt(e/segs.length)/4.5);const v=Math.round(e*100);if(v!==lastMeter){meter.style.width=v+'%';lastMeter=v}}
+function updateCount(){$('#count').textContent=fallen;$('#total').textContent=total;$('#regrowBtn').classList.toggle('ready',total>0&&fallen>=total)}
+function updateText(){
+  const F=FRUITS[current], m=MONTHS[selectedMonth];
+  $('#fruitName').textContent=F.id;$('#fruitEn').textContent=F.en;$('#fruitSeason').textContent=F.season;$('#fruitNote').textContent=F.note;
+  $('#monthLabel').textContent=(selectedMonth===NOW_MONTH?'Now · ':'Preview · ')+m[1];
+}
+function buildStrip(){
+  const strip=$('#strip');
+  MONTHS.forEach(([ab,full,key],i)=>{
+    const F=FRUITS[key], b=document.createElement('button');
+    b.type='button';b.className='mo'+(i===NOW_MONTH?' now':'');b.setAttribute('role','radio');b.setAttribute('aria-checked',i===selectedMonth);
+    b.setAttribute('aria-label',`${full}: ${F.id}${i===NOW_MONTH?' (this month)':''}`);
+    const cv=document.createElement('canvas');cv.width=60;cv.height=60;
+    const c=cv.getContext('2d'),s=46/(F.h*F.r);c.translate(30,30-F.h*F.r*s/2);c.scale(s,s);F.draw(c,F.r,1);
+    b.append(cv);
+    const m=document.createElement('span');m.className='mo-m';m.textContent=ab;
+    const f=document.createElement('span');f.className='mo-f';f.textContent=F.id.split(' ')[0];
+    b.append(m,f);
+    b.addEventListener('click',()=>{
+      strip.querySelectorAll('.mo').forEach(x=>x.setAttribute('aria-checked','false'));b.setAttribute('aria-checked','true');
+      selectedMonth=i; if(key!==current) setFruit(key,true); else updateText();
+    });
+    strip.append(b);
+  });
+  requestAnimationFrame(()=>{const nb=strip.children[NOW_MONTH];strip.scrollLeft=nb.offsetLeft-strip.clientWidth/2+nb.offsetWidth/2});
+}
+
+/* ---------- input ---------- */
+function toTree(e){const r=canvas.getBoundingClientRect();return[(e.clientX-r.left-view.ox)/view.sc,(e.clientY-r.top-view.gy)/view.sc]}
+function move(e){
+  const[x,y]=toTree(e),t=e.timeStamp/1000,dt=Math.max(.008,t-ptr.last);
+  if(ptr.active&&ptr.last){const vx=(x-ptr.x)/dt,vy=(y-ptr.y)/dt;ptr.vx+=(vx-ptr.vx)*.6;ptr.vy+=(vy-ptr.vy)*.6;
+    const m=Math.hypot(ptr.vx,ptr.vy);if(m>6000){ptr.vx*=6000/m;ptr.vy*=6000/m}}
+  ptr.x=x;ptr.y=y;ptr.last=t;ptr.active=true;
+}
+canvas.addEventListener('pointerdown',e=>{
+  ptr.down=true;ptr.last=0;move(e);canvas.classList.add('grabbing');
+  try{canvas.setPointerCapture(e.pointerId)}catch(_){}
+  for(const b of bodies){if(Math.hypot(b.x-ptr.x,b.y-ptr.y)<b.rad*1.6){b.vy=-700-Math.random()*300;b.vx+=(b.x-ptr.x>0?1:-1)*(150+Math.random()*150);b.vr+=(Math.random()-.5)*10}}
+});
+canvas.addEventListener('pointermove',move);
+const up=e=>{ptr.down=false;canvas.classList.remove('grabbing');if(e.pointerType!=='mouse')ptr.active=false};
+canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+canvas.addEventListener('pointerleave',()=>{if(!ptr.down)ptr.active=false});
+$('#shakeBtn').addEventListener('click',()=>{shakeT=1.1});
+$('#regrowBtn').addEventListener('click',()=>setFruit(current,true));
+addEventListener('resize',layout);
+
+/* ---------- boot ---------- */
+buildTree();buildStrip();layout();setFruit(current,false);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
+let prev=performance.now(), acc=0; const H=1/120;
+function frame(now){
+  acc+=Math.min(.05,(now-prev)/1000);prev=now;
+  while(acc>=H){step(H);acc-=H}
+  render();updateMeter();requestAnimationFrame(frame);
+}
+for(let i=0;i<60;i++)step(H);
+requestAnimationFrame(frame);
+window.__tree={get fallen(){return fallen},get total(){return total},shake:()=>{shakeT=1.1}};
+})();
+</script>
